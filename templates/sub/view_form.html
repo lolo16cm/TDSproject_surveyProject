@@ -1,0 +1,160 @@
+{% extends '../layout.html' %}
+{% load static %}
+{% block title %}{{form.title}} ~ Easy Survey{% endblock %}
+{% block script %}
+<script src="{% static 'index/viewform.js' %}" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block body %}
+<div class="container-fluid">
+    {% if role == "creator" %}
+    <div class="form-topnav">
+        <div class="form-navigation center">
+            <span class="col-2 navigation"><a href="{% url 'edit_form' form.code %}" class="link">Edit</a></span>
+            <span class="col-4 navigation active">Preview</span>
+            <span class="col-13 navigation"><a href = "{% url 'responses' form.code %}" class="link">Responses</a></span>
+        </div>
+    </div>
+    {% endif %}
+    <form class="container" method="POST" action="{% url 'submit_form' form.code %}" autocomplete="off">
+        {% csrf_token %}
+        <div class="margin-top-bottom box question-box">
+            <div class="form-title-box">
+                <h1 class="form-title txtClr">{{form.title}}</h1>
+                <p class="required-info">* Required</p>
+            </div>
+            <div class="form-description txtClr">{{form.description|linebreaksbr}}</div>
+        </div>
+        {% if form.status.lower == "republish" %}
+        <div class="container">
+            <div class="margin-top-bottom box question-box">
+                <h1 class="response-title">Questions Summary:</h1>
+                {% for r in responsesSummary %}
+                <div class="response-summary">
+                    <h3 class="response-summary-title">{{r.question.question}} (Question Type: {{r.question.question_type}})</h3>
+                        {% if r.answers|length > 0 %}
+                            {% if r.question.question_type == 'short' or r.question.question_type == 'paragraph' %}
+                                {% for i in r.answers %}
+                                    <blockquote>{{i.answer}}</blockquote>
+                                {% endfor %}
+                            {% else %}
+                            {% if r.highestChoice %}
+                                <p><strong>Most selected choice(s):</strong></p>
+                                <ul>
+                                    {% for choice in r.highestChoice %}
+                                        <li>{{ choice.choice }} ({{ choice.count }} votes)</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p><i>No responses yet.</i></p>
+                        {% endif %}
+                
+                        {% if r.choices|length > 0 %}
+                            <canvas id="myChart{{r.question.id}}" class="pie-chart"></canvas>
+                            <script>
+                                // Ensure Chart.js uses the correct font and size
+                                Chart.defaults.font.family = "Roboto";
+                                Chart.defaults.font.size = 16;
+    
+                                // Get the canvas context
+                                var ctx = document.getElementById("myChart{{r.question.id}}").getContext('2d');
+                                
+                                // Prepare data for the chart
+                                var chartData = {
+                                    labels: [{% for choice in r.question.choices.all %}"{{ choice.choice }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+                                    datasets: [{
+                                        data: [{% for choice in r.choices %}{{ choice.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                                        backgroundColor: [
+                                            'rgba(255, 99, 132, 0.6)',
+                                            'rgba(54, 162, 235, 0.6)',
+                                            'rgba(255, 206, 86, 0.6)',
+                                            'rgba(75, 192, 192, 0.6)',
+                                            'rgba(153, 102, 255, 0.6)',
+                                            'rgba(255, 159, 64, 0.6)'
+                                        ].slice(0, {{ r.question.choices.all|length }}) // Limit colors to the number of choices
+                                    }]
+                                };
+    
+                                // Create the chart
+                                new Chart(ctx, {
+                                    type: 'bar',
+                                    data: chartData,
+                                    options: { 
+                                        indexAxis: 'y', // Make the bar chart horizontal
+                                        responsive: true,
+                                        plugins: {
+                                            legend: {
+                                                position: 'top', // Position of the legend (e.g., 'top', 'bottom')
+                                            }
+                                        },
+                                        scales: {
+                                            x: {
+                                                beginAtZero: true,
+                                                title: {
+                                                    display: true,
+                                                    text: 'Number of Responses'
+                                                }
+                                            },
+                                            y: {
+                                                title: {
+                                                    display: true,
+                                                    text: 'Choices'
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                            </script>
+                        {% endif %}
+                    {% endif %}
+                    {% else %}
+                    <blockquote><i>No responses</i></blockquote>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% if form.status.lower == "republish" %}
+        <div class="margin-top-bottom box question-box">
+            <div class="form-title-box">
+                <h1 class="form-title txtClr">Re-Take The Survey</h1>
+            </div>
+        </div>
+        {% endif %}
+        {% if form.collect_email %}
+        <div class="margin-top-bottom box question-box">
+            <h1 class="question-title txtClr">Email address: <span class="require-star">*</span></h1>
+            <input type="email" name="email-address" class="short-answer" placeholder="Your email address" required>
+        </div>
+        {% endif %}
+        {% for question in form.questions.all %}
+        <div class="margin-top-bottom box question-box">
+            <h1 class="question-title txtClr">{{question.question}} {% if question.required %}<span class="require-star">*</span>{% endif %}</h1>
+            {% if question.question_type == "short" %}
+                <input type="text" name="{{question.id}}" class="short-answer" placeholder = "Your answer" {% if question.required %} required {% endif %}>
+            {% elif question.question_type == "paragraph" %}
+                <textarea name="{{question.id}}" placeholder="Your answer" class="long-answer textarea-adjust" {% if question.required %} required {% endif %}></textarea>
+            {% elif question.question_type == "multiple choice" %}
+                {% for choice in question.choices.all %}
+                <div class="multiple-choice">
+                    <input type="radio" name="{{question.id}}" id="{{choice.id}}" {% if question.required %} required {% endif %} value="{{choice.id}}">
+                    <label for="{{choice.id}}" class="txtClr">{{choice.choice}}</label>
+                </div>
+                {% endfor %}
+            {% elif question.question_type == "checkbox" %}
+            {% for choice in question.choices.all %}
+                <div class="multiple-choice">
+                    <input type="checkbox" name="{{question.id}}" id="{{choice.id}}" {% if question.required %} required {% endif %} value="{{choice.id}}">
+                    <label for="{{choice.id}}" class="txtClr">{{choice.choice}}</label>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        <div class="margin-top-bottom">
+            <input type="submit" value="Submit" class="btn btn-submit">
+        </div>
+    </form>
+</div>
+{% endblock %}

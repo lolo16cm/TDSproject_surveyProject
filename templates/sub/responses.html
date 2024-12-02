@@ -1,0 +1,97 @@
+{% extends '../layout.html' %}
+{% load static %}
+{% block title %}{{form.title}}'s response ~ Easy Survey{% endblock %}
+{% block script %}
+<script src="{% static 'index/responses.js' %}" defer>import Chart from 'chart.js/auto';</script>
+<script src="{% static 'lib/cookie.min.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block body %}
+<div class="container-fluid">
+    <div class="form-topnav">
+        <div class="form-navigation center">
+            <span class="col-2 navigation"><a href="{% url 'edit_form' form.code %}" class="link">Edit</a></span>
+            <span class="col-4 navigation"><a href="{% url 'view_form' form.code %}" class="link">Preview</a></span>
+            <span class="col-13 navigation active">Responses</span>
+        </div>
+    </div>
+    <div class="container">
+        <div class="margin-top-bottom box question-box" id="responses">
+            {% if responses.count > 0 %}
+            <h1 class="response-title">Individual Response:</h1>
+            <ul>
+                {% for i in responses %}
+                    {% if form.collect_email %}
+                        <li><a href="{% url 'response' form.code i.response_code %}" class="link">{{i.responder_email}}'s response</a></li>
+                    {% elif form.authenticated_responder %}
+                        <li><a href="{% url 'response' form.code i.response_code %}" class="link">{{i.responder.username}}'s response</a></li>
+                    {% else %}
+                        <li><a href="{% url 'response' form.code i.response_code %}" class="link">{{i.responder_ip}}'s response</a></li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            <button class="btn btn-danger" id="delete-responses">Delete all responses</button>
+           
+            {% else %}
+            <h1 class="response-title">0 responses</h1>
+            {% endif %}
+        </div>
+        <div class="margin-top-bottom box question-box">
+            <h1 class="response-title">Questions Summary:</h1>
+            {% for r in responsesSummary %}
+            <div class="response-summary">
+                <h3 class="response-summary-title">{{r.question.question}}</h3>
+                {% if r.answers|length > 0 %}
+                    {% if r.question.question_type == 'short' or r.question.question_type == 'paragraph' %}
+                        {% for i in r.answers %}
+                            <blockquote>{{i.answer}}</blockquote>
+                        {% endfor %}
+                    {% else %}
+                        <canvas id="myChart{{r.question.id}}" class="pie-chart"></canvas>
+                        <script>
+                            // Ensure Chart.js uses the correct font and size
+                            Chart.defaults.font.family = "Roboto";
+                            Chart.defaults.font.size = 16;
+
+                            // Get the canvas context
+                            var ctx = document.getElementById("myChart{{r.question.id}}").getContext('2d');
+                             // Prepare data for the chart
+                            var chartData = {
+                                labels: [{% for choice in r.question.choices.all %}"{{ choice.choice }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+                                datasets: [{
+                                    data: [{% for choice in r.choices %}{{ choice.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                                    backgroundColor: [
+                                        'rgba(255, 99, 132, 0.6)',
+                                        'rgba(54, 162, 235, 0.6)',
+                                        'rgba(255, 206, 86, 0.6)',
+                                        'rgba(75, 192, 192, 0.6)',
+                                        'rgba(153, 102, 255, 0.6)',
+                                        'rgba(255, 159, 64, 0.6)'
+                                    ].slice(0, {{ r.question.choices.all|length }}) // Limit colors to the number of choices
+                                }]
+                            };
+
+                            // Create the chart
+                            new Chart(ctx, {
+                                type: 'pie',
+                                data: chartData,
+                                options: { 
+                                    responsive: true,
+                                    plugins: {
+                                        legend: {
+                                            position: 'top', // Position of the legend (e.g., 'top', 'bottom')
+                                        }
+                                    } 
+                                }
+                            });
+                        </script>
+                    {% endif %}
+                {% else %}
+                <blockquote><i>No responses</i></blockquote>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

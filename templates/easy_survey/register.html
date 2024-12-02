@@ -1,0 +1,23 @@
+{% extends '../layout.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}
+    Register - Easy Survey
+{% endblock %}
+
+{% block body %}
+<div class="content-section">
+    <form method="POST">
+        {% csrf_token %}
+        <fieldset>
+            <legend class="border-bottom pb-2 mb-4">Register</legend>
+            {{ form|crispy }}
+            <div class="d-flex justify-content-center mt-4">
+                <button class="btn btn-outline-info me-2" type="submit">Sign Up</button>
+                <a class="btn btn-outline-info me-2" href="{% url 'login' %}">Back</a>
+            </div>
+        </fieldset>
+    </form>
+</div>
+{% endblock %}

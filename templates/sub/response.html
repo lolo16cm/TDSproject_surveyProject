@@ -1,0 +1,53 @@
+{% extends '../layout.html' %}
+{% load static %}
+{% block script %}
+<script src="{% static 'index/response.js' %}"></script>
+{% endblock %}
+{% block body %}
+<div class="container-fluid">
+    <div class="container">
+        {% if form.collect_email %}
+        <div class="margin-top-bottom box question-box">
+            <h1 class="question-title txtClr">Email address: <span class="require-star">*</span></h1>
+            <p class="short-answer">{{response.responder_email}}</p>
+        </div>
+        {% endif %}
+        {% for question in form.questions.all %}
+        <div class="margin-top-bottom box question-box">
+            <h1 class="response-title txtClr">{{question.question}} {% if question.required %}<span class="require-star">*</span>{% endif %}
+            </h1>
+            {% if question.question_type == "short" %}
+                <p class="short-answer"></p>
+            {% elif question.question_type == "paragraph" %}
+                <p class="long-answer"></p>
+            {% elif question.question_type == "multiple choice" %}
+                {% for choice in question.choices.all %}
+                <div class="multiple-choice">
+                    <input type="radio" name="{{question.id}}" id="{{choice.id}}" disabled>
+                    <label for="{{choice.id}}" class="txtClr">{{choice.choice}}</label>
+                </div>
+                {% endfor %}
+            {% elif question.question_type == "checkbox" %}
+                {% for choice in question.choices.all %}
+                <div class="multiple-choice">
+                    <input type="checkbox" name="{{question.id}}" id="{{choice.id}}" value="{{choice.id}}" disabled>
+                    <label for="{{choice.id}}" class="txtClr">{{choice.choice}}</label>
+                </div>
+                {% endfor %}
+            {% endif %}
+            {% if user != form.creator and question.feedback != None and question.feedback != "" %}
+                <div class="feedback">
+                    <h5 class="feedback-title">Feedback:</h5>
+                    <p class="text-label long-answer">{{question.feedback|linebreaksbr|urlize}}</p>
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% if user == form.creator %}
+        <a href="{% url 'edit_form' form.code %}">
+            <img src="{% static 'Icon/question.png' %}" alt="Edit Question" title="Edit this form" class="edit-form-link">
+        </a>
+    {% endif %}
+</div>
+{% endblock %}
